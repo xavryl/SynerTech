@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en" class="js-off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POS v1 Database Design</title>
+<meta name="description" content="Database design for a Philippine retail point-of-sale system, with downloadable schemas for SQLite, PostgreSQL, MySQL and Supabase.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=2">
+<script>
+  document.documentElement.classList.remove('js-off');
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <button class="btn btn-icon menu-btn" id="menuBtn" aria-label="Open sections menu" aria-expanded="false" aria-controls="toc">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <a class="brand" href="#top">
+      <span class="brand-mark">POS</span>
+      <span>Database Design <small>v1</small></span>
+    </a>
+    <div class="topbar-spacer"></div>
+    <a class="btn hide-sm" href="downloads/POS_v1_Database_Design.pdf" download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
+      PDF
+    </a>
+    <a class="btn btn-primary" href="downloads/pos-schemas-all.zip" download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <span>All schemas</span>
+    </a>
+    <button class="btn btn-icon" id="themeBtn" aria-label="Toggle dark mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout" id="top">
+
+<nav class="toc" id="toc" aria-label="Sections">
+  <p class="toc-title">On this page</p>
+  <a href="#downloads">Downloads</a>
+  <a href="#choose">Choosing a database</a>
+  <a href="#conventions">Conventions</a>
+  <a href="#changes">Changes from the plan</a>
+  <a href="#erd">Diagram</a>
+  <a href="#tables">Table reference</a>
+  <a href="#sale">How a sale works</a>
+  <a href="#discounts">SC / PWD and VAT</a>
+  <a href="#returns">Returns and exchanges</a>
+  <a href="#rules">Built-in rules</a>
+  <a href="#setup">Setup guides</a>
+  <a href="#open">App duties and open items</a>
+</nav>
+
+<main>
+
+<!-- ================================ HERO ================================ -->
+<section class="hero">
+  <div class="eyebrow">Planning document · 26 October 2026</div>
+  <h1>A point-of-sale database for <span>Philippine retail</span></h1>
+  <p class="lead">One data model for pharmacies, convenience and hardware stores. It covers SC/PWD discounts and VAT,
+    clerk-to-cashier order slips, returns and exchanges, and full stock history. You can download it for SQLite, PostgreSQL, MySQL and Supabase.</p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="#downloads">Download schemas</a>
+    <a class="btn" href="#choose">Which database should I use?</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>14</b><span>tables</span></div>
+    <div class="stat"><b>3</b><span>database engines</span></div>
+    <div class="stat"><b>6</b><span>hosting options</span></div>
+    <div class="stat"><b>17</b><span>built-in rules</span></div>
+  </div>
+</section>
+
+<div class="callout callout-warn">
+  <strong>Verify before go-live</strong>
+  <p>The discount and VAT rules here are a starting point. Check them against current BIR revenue regulations, RA 9994 (Senior Citizens),
+  RA 10754 (PWD) and the current DTI order on basic necessities. A POS that issues invoices must also be registered with the BIR.</p>
+</div>
+
+<!-- ================================ DOWNLOADS ================================ -->
+<section class="block" id="downloads">
+  <div class="eyebrow">Get the files</div>
+  <h2>Downloads</h2>
+  <p class="lead">Each database folder has <code>schema.sql</code> (tables, views, rules and starter data) and <code>example_checkout.sql</code> (a sample delivery, Senior Citizen sale, regular sale, refund and exchange).</p>
+
+  <div class="grid grid-2">
+    <div class="card card-wide">
+      <div class="grow">
+        <h3>Everything in one download</h3>
+        <p style="margin:0">All schemas and examples, the Supabase migrations, and a README. The PDF version of this page is separate.</p>
+      </div>
+      <div class="card-foot">
+        <a class="btn btn-primary" href="downloads/pos-schemas-all.zip" download data-size="pos-schemas-all.zip">All schemas (.zip)</a>
+        <a class="btn" href="downloads/POS_v1_Database_Design.pdf" download data-size="POS_v1_Database_Design.pdf">Design PDF</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="engine-icon ei-sqlite">SQL</span>SQLite</h3>
+      <p><span class="badge badge-ok">Tested · SQLite 3.45</span> One file, no server, works offline. Recommended for v1.</p>
+      <ul class="files">
+        <li><span class="fname">schema.sql</span><span class="fsize" data-size="sqlite/schema.sql"></span>
+          <button class="btn btn-sm" data-view="sqlite/schema.sql">View</button>
+          <a class="btn btn-sm" href="downloads/sqlite/schema.sql" download>Download</a></li>
+        <li><span class="fname">example_checkout.sql</span><span class="fsize" data-size="sqlite/example_checkout.sql"></span>
+          <button class="btn btn-sm" data-view="sqlite/example_checkout.sql">View</button>
+          <a class="btn btn-sm" href="downloads/sqlite/example_checkout.sql" download>Download</a></li>
+      </ul>
+      <div class="card-foot"><a class="btn btn-sm" href="downloads/pos-sqlite.zip" download>SQLite .zip</a></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="engine-icon ei-pg">PG</span>PostgreSQL</h3>
+      <p><span class="badge badge-ok">Tested · PostgreSQL 18</span> Version 15 or newer. Also for Cloud SQL, AlloyDB, RDS and Aurora.</p>
+      <ul class="files">
+        <li><span class="fname">schema.sql</span><span class="fsize" data-size="postgresql/schema.sql"></span>
+          <button class="btn btn-sm" data-view="postgresql/schema.sql">View</button>
+          <a class="btn btn-sm" href="downloads/postgresql/schema.sql" download>Download</a></li>
+        <li><span class="fname">example_checkout.sql</span><span class="fsize" data-size="postgresql/example_checkout.sql"></span>
+          <button class="btn btn-sm" data-view="postgresql/example_checkout.sql">View</button>
+          <a class="btn btn-sm" href="downloads/postgresql/example_checkout.sql" download>Download</a></li>
+      </ul>
+      <div class="card-foot"><a class="btn btn-sm" href="downloads/pos-postgresql.zip" download>PostgreSQL .zip</a></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="engine-icon ei-mysql">My</span>MySQL</h3>
+      <p><span class="badge badge-warn">Written · not yet run</span> Version 8.0.16 or newer. Also for Cloud SQL, RDS and Aurora MySQL.</p>
+      <ul class="files">
+        <li><span class="fname">schema.sql</span><span class="fsize" data-size="mysql/schema.sql"></span>
+          <button class="btn btn-sm" data-view="mysql/schema.sql">View</button>
+          <a class="btn btn-sm" href="downloads/mysql/schema.sql" download>Download</a></li>
+        <li><span class="fname">example_checkout.sql</span><span class="fsize" data-size="mysql/example_checkout.sql"></span>
+          <button class="btn btn-sm" data-view="mysql/example_checkout.sql">View</button>
+          <a class="btn btn-sm" href="downloads/mysql/example_checkout.sql" download>Download</a></li>
+      </ul>
+      <div class="card-foot"><a class="btn btn-sm" href="downloads/pos-mysql.zip" download>MySQL .zip</a></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="engine-icon ei-supa">SB</span>Supabase</h3>
+      <p><span class="badge badge-ok">Tested · access rules</span> The PostgreSQL schema plus staff login and per-role access rules.</p>
+      <ul class="files">
+        <li><span class="fname">…000000_pos_schema.sql</span><span class="fsize" data-size="supabase/migrations/20261026000000_pos_schema.sql"></span>
+          <button class="btn btn-sm" data-view="supabase/migrations/20261026000000_pos_schema.sql">View</button>
+          <a class="btn btn-sm" href="downloads/supabase/migrations/20261026000000_pos_schema.sql" download>Download</a></li>
+        <li><span class="fname">…000100_auth_and_rls.sql</span><span class="fsize" data-size="supabase/migrations/20261026000100_auth_and_rls.sql"></span>
+          <button class="btn btn-sm" data-view="supabase/migrations/20261026000100_auth_and_rls.sql">View</button>
+          <a class="btn btn-sm" href="downloads/supabase/migrations/20261026000100_auth_and_rls.sql" download>Download</a></li>
+      </ul>
+      <div class="card-foot"><a class="btn btn-sm" href="downloads/pos-supabase.zip" download>Supabase .zip</a></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="engine-icon ei-gcp">G</span>Google Cloud</h3>
+      <p><span class="badge badge-info">Uses PostgreSQL or MySQL files</span> Cloud SQL hosts PostgreSQL or MySQL for you, so it uses the same files.</p>
+      <div class="card-foot">
+        <a class="btn btn-sm" href="downloads/pos-postgresql.zip" download>PostgreSQL .zip</a>
+        <a class="btn btn-sm" href="downloads/pos-mysql.zip" download>MySQL .zip</a>
+        <a class="btn btn-sm" href="#setup" data-open-tab="gcp">Setup guide</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="engine-icon ei-aws">AWS</span>AWS</h3>
+      <p><span class="badge badge-info">Uses PostgreSQL or MySQL files</span> RDS and Aurora host PostgreSQL or MySQL for you, so they use the same files.</p>
+      <div class="card-foot">
+        <a class="btn btn-sm" href="downloads/pos-postgresql.zip" download>PostgreSQL .zip</a>
+        <a class="btn btn-sm" href="downloads/pos-mysql.zip" download>MySQL .zip</a>
+        <a class="btn btn-sm" href="#setup" data-open-tab="aws">Setup guide</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================ CHOOSE ================================ -->
+<section class="block" id="choose">
+  <div class="eyebrow">Decide</div>
+  <h2>Choosing a database</h2>
+  <p class="lead">The design comes in three database engines. The cloud options host one of those engines for you, so they use the same files.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Option</th><th>What it is</th><th>Works offline</th><th>Cost</th><th>Best for</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SQLite</strong></td><td>A database inside one file, no server</td><td>Yes</td><td>Free</td><td>One computer per database. The simplest v1</td></tr>
+        <tr><td><strong>PostgreSQL</strong></td><td>Database server you install</td><td>Yes, on the store network</td><td>Free software; you run the server</td><td>Several counters in one store sharing one database</td></tr>
+        <tr><td><strong>MySQL</strong></td><td>Database server you install</td><td>Yes, on the store network</td><td>Free software; you run the server</td><td>Same, if the team already knows MySQL</td></tr>
+        <tr><td><strong>Supabase</strong></td><td>Hosted PostgreSQL with login and an API</td><td>No</td><td>Free plan; paid tiers</td><td>Multiple branches or remote reports, without writing a backend</td></tr>
+        <tr><td><strong>Google Cloud</strong></td><td>Cloud SQL: hosted PostgreSQL or MySQL</td><td>No</td><td>Paid; trial credit for new accounts</td><td>Teams already on Google Cloud or Firebase</td></tr>
+        <tr><td><strong>AWS</strong></td><td>RDS / Aurora: hosted PostgreSQL or MySQL</td><td>No</td><td>Paid; free tier for new accounts</td><td>Teams already on AWS, or larger scale</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">Cloud prices and free-tier rules change often. Check each provider's current pricing page before deciding.</p>
+
+  <h3>Online or offline?</h3>
+  <p>A store can't stop selling when the internet drops. That decides most of the architecture.</p>
+  <div class="grid grid-3">
+    <div class="card"><h3>Local only</h3><p>SQLite on the counter PC, or PostgreSQL/MySQL on a PC in the store that the counters connect to over the store network. Keeps working without internet; reports are only available in the store.</p></div>
+    <div class="card"><h3>Cloud only</h3><p>Supabase, Google Cloud or AWS. The owner can see every branch from anywhere, but checkout stops when the internet is down.</p></div>
+    <div class="card"><h3>Both</h3><p>Each counter saves sales to local SQLite and copies them to the cloud when online. The most resilient, but you have to build the syncing, and each counter needs its own invoice number series.</p></div>
+  </div>
+
+  <div class="callout" style="margin-top:16px">
+    <strong>Recommendation</strong>
+    <p>For v1, start with <strong>SQLite</strong>: no server, works offline, and the design is already tested. If you need the cloud, pick <strong>Supabase</strong>.
+    It's PostgreSQL with staff login and access rules already written. Choose Google Cloud or AWS when the business already uses them.</p>
+  </div>
+</section>
+
+<!-- ================================ CONVENTIONS ================================ -->
+<section class="block" id="conventions">
+  <div class="eyebrow">Basics</div>
+  <h2>Conventions</h2>
+  <p class="lead">These are the same in every version, so the app's calculation code works unchanged whichever database you pick.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>What</th><th>Stored as</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Money</td><td>Whole centavos</td><td>₱112.50 → <code>11250</code></td></tr>
+        <tr><td>Quantity</td><td>Whole thousandths (<code>_milli</code>)</td><td>2 pcs → <code>2000</code>; 1.5 m → <code>1500</code></td></tr>
+        <tr><td>Rates</td><td>Basis points (<code>_bp</code>)</td><td>12% → <code>1200</code>; 20% → <code>2000</code></td></tr>
+        <tr><td>Date/time</td><td>Timestamp, reported in store time</td><td>Asia/Manila</td></tr>
+        <tr><td>Choices</td><td>Text with an allowed-values list</td><td><code>status</code>: pending / paid / voided</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Whole numbers are used for money and quantities because decimals and floating-point numbers drift (0.1 + 0.2 ≠ 0.3). The app converts to pesos only for display.
+    Every version rejects a value of the wrong type instead of silently storing it.</p>
+  <div class="callout">
+    <strong>SQLite only</strong>
+    <p>Every connection must start with <code>PRAGMA foreign_keys = ON;</code>. SQLite leaves table links unchecked by default. PostgreSQL and MySQL always check them.</p>
+  </div>
+</section>
+
+<!-- ================================ CHANGES ================================ -->
+<section class="block" id="changes">
+  <div class="eyebrow">Review</div>
+  <h2>Changes from the original plan</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Original</th><th>v1</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Money as String, SubTotal as Double</td><td>Whole centavos</td><td>Strings can't be added; doubles cause rounding errors</td></tr>
+        <tr><td>Quantity as String</td><td>Whole thousandths</td><td>Math works, and items can be sold by the meter or kilo</td></tr>
+        <tr><td>Array columns (Category, Emp_role, DiscountType)</td><td><code>categories</code> table; single <code>role</code>; <code>discount_types</code> table</td><td>Databases don't store lists in a column well; lookups need their own table</td></tr>
+        <tr><td>One DiscountID per transaction</td><td>Discount per line item</td><td>An SC gets 20% on medicine but 5% on rice in the same sale</td></tr>
+        <tr><td>PWD listed as VAT-inclusive</td><td>PWD 20% and VAT-exempt, same as SC</td><td>RA 10754 gives PWDs the same treatment as seniors</td></tr>
+        <tr><td>Customer and Membership tables</td><td>One <code>customers</code> table; walk-ins have no row</td><td>Membership duplicated the name fields</td></tr>
+        <tr><td>ClerkID / EmployeeID (inconsistent)</td><td><code>clerk_id</code>, <code>cashier_id</code>, <code>status</code></td><td>The flow has two people and a slip that exists before payment</td></tr>
+        <tr><td>Stock as one column</td><td><code>stock_movements</code> history + cached <code>stock_milli</code></td><td>Every stock change can be traced</td></tr>
+        <tr><td>Return: one product, no quantity</td><td><code>returns</code> + <code>return_items</code>; refund or exchange</td><td>Multi-item and partial returns, with credit amounts</td></tr>
+        <tr><td>No supplier, payment or shift tables</td><td><code>suppliers</code>, <code>payments</code>, <code>shifts</code></td><td>Deliveries, split payments, cash drawer and end-of-day report</td></tr>
+        <tr><td>Only SubTotal on each item</td><td>Price snapshot plus VAT/discount breakdown</td><td>Old receipts don't change when prices change; BIR invoice fields</td></tr>
+        <tr><td>No SC/PWD ID stored</td><td><code>beneficiary_type</code>, <code>_id_no</code>, <code>_name</code></td><td>BIR requires the ID number and name on the invoice</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================================ ERD ================================ -->
+<section class="block" id="erd">
+  <div class="eyebrow">Structure</div>
+  <h2>Entity relationship diagram</h2>
+  <figure>
+    <div class="diagram erd">
+<svg viewBox="0 0 780 530" role="img" aria-labelledby="erdTitle" xmlns="http://www.w3.org/2000/svg">
+  <title id="erdTitle">Tables and the links between them</title>
+  <path class="rel" d="M220,128 H196 V42 H180"/><circle class="many" cx="220" cy="128" r="3.2"/>
+  <path class="rel" d="M220,140 H180"/><circle class="many" cx="220" cy="140" r="3.2"/>
+  <path class="rel" d="M220,238 H180"/><circle class="many" cx="220" cy="238" r="3.2"/>
+  <path class="rel" d="M100,220 V154"/><circle class="many" cx="100" cy="220" r="3.2"/>
+  <path class="rel" d="M420,140 H380"/><circle class="many" cx="420" cy="140" r="3.2"/>
+  <path class="rel" d="M580,140 H600"/><circle class="many" cx="580" cy="140" r="3.2"/>
+  <path class="rel" d="M440,110 V90 H300 V64"/><circle class="many" cx="440" cy="110" r="3.2"/>
+  <path class="rel" d="M690,110 V64"/><circle class="many" cx="690" cy="110" r="3.2"/>
+  <path class="rel" d="M630,110 V82 H520 V64"/><circle class="many" cx="630" cy="110" r="3.2"/>
+  <path class="rel" d="M680,260 V186"/><circle class="many" cx="680" cy="260" r="3.2"/>
+  <path class="rel" d="M320,300 V250"/><circle class="many" cx="320" cy="300" r="3.2"/>
+  <path class="rel" d="M260,376 V420"/><circle class="many" cx="260" cy="376" r="3.2"/>
+  <path class="rel" d="M220,490 H204 V200 H220"/><circle class="many" cx="220" cy="490" r="3.2"/>
+  <path class="rel" d="M500,376 V466 H380"/><circle class="many" cx="500" cy="376" r="3.2"/>
+  <path class="rel" d="M540,300 V202"/><circle class="many" cx="540" cy="300" r="3.2"/>
+
+  <g transform="translate(20,20)"><rect class="box" width="160" height="44" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">customers</text>
+    <text class="col" x="8" y="35">customer_id</text><text class="k pkt" x="138" y="35">PK</text></g>
+  <g transform="translate(220,20)"><rect class="box" width="160" height="44" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">discount_types</text>
+    <text class="col" x="8" y="35">discount_type_id</text><text class="k pkt" x="138" y="35">PK</text></g>
+  <g transform="translate(420,20)"><rect class="box" width="160" height="44" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">suppliers</text>
+    <text class="col" x="8" y="35">supplier_id</text><text class="k pkt" x="138" y="35">PK</text></g>
+  <g transform="translate(600,20)"><rect class="box" width="160" height="44" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">categories</text>
+    <text class="col" x="8" y="35">category_id</text><text class="k pkt" x="138" y="35">PK</text></g>
+  <g transform="translate(20,110)"><rect class="box" width="160" height="44" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">employees</text>
+    <text class="col" x="8" y="35">employee_id</text><text class="k pkt" x="138" y="35">PK</text></g>
+  <g transform="translate(220,110)"><rect class="box" width="160" height="140" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">transactions</text>
+    <text class="col" x="8" y="35">transaction_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">invoice_no</text>
+    <text class="col" x="8" y="67">status</text>
+    <text class="col" x="8" y="83">customer_id</text><text class="k fkt" x="138" y="83">FK</text>
+    <text class="col" x="8" y="99">clerk_id</text><text class="k fkt" x="138" y="99">FK</text>
+    <text class="col" x="8" y="115">cashier_id</text><text class="k fkt" x="138" y="115">FK</text>
+    <text class="col" x="8" y="131">shift_id</text><text class="k fkt" x="138" y="131">FK</text></g>
+  <g transform="translate(420,110)"><rect class="box" width="160" height="92" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">transaction_items</text>
+    <text class="col" x="8" y="35">transaction_item_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">transaction_id</text><text class="k fkt" x="138" y="51">FK</text>
+    <text class="col" x="8" y="67">product_id</text><text class="k fkt" x="138" y="67">FK</text>
+    <text class="col" x="8" y="83">discount_type_id</text><text class="k fkt" x="138" y="83">FK</text></g>
+  <g transform="translate(600,110)"><rect class="box" width="160" height="76" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">products</text>
+    <text class="col" x="8" y="35">product_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">category_id</text><text class="k fkt" x="138" y="51">FK</text>
+    <text class="col" x="8" y="67">supplier_id</text><text class="k fkt" x="138" y="67">FK</text></g>
+  <g transform="translate(20,220)"><rect class="box" width="160" height="60" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">shifts</text>
+    <text class="col" x="8" y="35">shift_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">cashier_id</text><text class="k fkt" x="138" y="51">FK</text></g>
+  <g transform="translate(600,260)"><rect class="box" width="160" height="108" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">stock_movements</text>
+    <text class="col" x="8" y="35">movement_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">product_id</text><text class="k fkt" x="138" y="51">FK</text>
+    <text class="col" x="8" y="67">transaction_id</text><text class="k fkt" x="138" y="67">FK</text>
+    <text class="col" x="8" y="83">return_item_id</text><text class="k fkt" x="138" y="83">FK</text>
+    <text class="col" x="8" y="99">supplier_id</text><text class="k fkt" x="138" y="99">FK</text></g>
+  <g transform="translate(220,300)"><rect class="box" width="160" height="76" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">payments</text>
+    <text class="col" x="8" y="35">payment_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">transaction_id</text><text class="k fkt" x="138" y="51">FK</text>
+    <text class="col" x="8" y="67">return_id</text><text class="k fkt" x="138" y="67">FK</text></g>
+  <g transform="translate(420,300)"><rect class="box" width="160" height="76" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">return_items</text>
+    <text class="col" x="8" y="35">return_item_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">return_id</text><text class="k fkt" x="138" y="51">FK</text>
+    <text class="col" x="8" y="67">transaction_item_id</text><text class="k fkt" x="138" y="67">FK</text></g>
+  <g transform="translate(220,420)"><rect class="box" width="160" height="92" rx="4"/><rect class="hdr" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">returns</text>
+    <text class="col" x="8" y="35">return_id</text><text class="k pkt" x="138" y="35">PK</text>
+    <text class="col" x="8" y="51">original_transaction_id</text><text class="k fkt" x="138" y="51">FK</text>
+    <text class="col" x="8" y="67">processed_by</text><text class="k fkt" x="138" y="67">FK</text>
+    <text class="col" x="8" y="83">shift_id</text><text class="k fkt" x="138" y="83">FK</text></g>
+  <g transform="translate(20,420)"><rect class="box" width="160" height="44" rx="4"/><rect class="hdr-alt" width="160" height="20" rx="4"/>
+    <text class="tname" x="8" y="14">store_settings</text>
+    <text class="col" x="8" y="35">id = 1 (single row)</text></g>
+  <g transform="translate(600,420)">
+    <circle class="many" cx="6" cy="6" r="3.2"/><path class="rel" d="M6,6 H40"/>
+    <text class="note" x="48" y="9">dot = the "many" side</text>
+    <text class="note" x="0" y="30">Only keys are shown.</text>
+    <text class="note" x="0" y="44">Links from employees to returns,</text>
+    <text class="note" x="0" y="58">stock_movements and voids omitted.</text>
+  </g>
+</svg>
+    </div>
+    <figcaption>Each line runs from a foreign key (dot) to the table it points to. On small screens, scroll the diagram sideways.</figcaption>
+  </figure>
+  <ul>
+    <li><strong>A sale</strong> is one <code>transactions</code> row with many <code>transaction_items</code> and one or more <code>payments</code>.</li>
+    <li><strong>Each item</strong> points to a <code>product</code> and, if discounted, to a <code>discount_type</code>.</li>
+    <li><strong>A return</strong> points to the original sale; each <code>return_item</code> points to the exact line that was bought.</li>
+    <li><strong>An exchange</strong> is a new sale paid with an <code>exchange_credit</code> payment that points to the return.</li>
+    <li><strong>Every stock change</strong> is a <code>stock_movements</code> row; <code>products.stock_milli</code> is their running total.</li>
+  </ul>
+</section>
+
+<!-- ================================ TABLES ================================ -->
+<section class="block" id="tables">
+  <div class="eyebrow">Reference</div>
+  <h2>Table reference</h2>
+  <p class="lead">Every table has a whole-number primary key named after the table, and <code>created_at</code> defaults to the current time.
+    The <em>Kind</em> column maps to each database like this:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Kind</th><th>SQLite</th><th>PostgreSQL</th><th>MySQL</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td class="t">INTEGER PRIMARY KEY</td><td class="t">bigint generated always as identity</td><td class="t">BIGINT AUTO_INCREMENT</td></tr>
+        <tr><td>ref (link)</td><td class="t">INTEGER REFERENCES</td><td class="t">bigint references</td><td class="t">BIGINT + FOREIGN KEY</td></tr>
+        <tr><td>money</td><td class="t">INTEGER</td><td class="t">bigint</td><td class="t">BIGINT</td></tr>
+        <tr><td>qty</td><td class="t">INTEGER</td><td class="t">integer / bigint</td><td class="t">INT / BIGINT</td></tr>
+        <tr><td>text, choice</td><td class="t">TEXT (+ CHECK)</td><td class="t">text (+ check)</td><td class="t">VARCHAR(n) (+ CHECK)</td></tr>
+        <tr><td>yes/no</td><td class="t">INTEGER 0/1</td><td class="t">boolean</td><td class="t">BOOLEAN</td></tr>
+        <tr><td>time</td><td class="t">TEXT, local time</td><td class="t">timestamptz</td><td class="t">DATETIME</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">PostgreSQL and MySQL add one table, <code>invoice_counter</code>. It holds the last invoice number, so cashiers paying at the same moment never get the same or a skipped number.</p>
+
+  <div class="ref-tools">
+    <label class="visually-hidden" for="tableSearch">Search tables and columns</label>
+    <input class="search" id="tableSearch" type="search" placeholder="Search tables and columns, e.g. invoice, discount, stock">
+    <button class="btn btn-sm" id="expandAll">Expand all</button>
+    <button class="btn btn-sm" id="collapseAll">Collapse all</button>
+  </div>
+
+  <div id="tableList">
+  <details class="tbl">
+    <summary><span class="tname">store_settings</span><span class="tdesc">Store-wide settings. Exactly one row.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">store_name, address, tin</td><td class="t">text</td><td>Printed on receipts</td></tr>
+        <tr><td class="k">is_vat_registered</td><td class="t">yes/no</td><td>If no, every line is <code>non_vat</code> and no VAT is computed (e.g. a sari-sari store under percentage tax)</td></tr>
+        <tr><td class="k">vat_rate_bp</td><td class="t">int</td><td>Default 1200 (12%)</td></tr>
+        <tr><td class="k">return_window_days</td><td class="t">int</td><td>Default 7. Past this, a manager must approve the return</td></tr>
+        <tr><td class="k">two_step_checkout</td><td class="t">yes/no</td><td>Yes = clerk prints an order slip, cashier takes payment. No = one person does both</td></tr>
+        <tr><td class="k">time_zone</td><td class="t">text</td><td>PostgreSQL only. Default <code>Asia/Manila</code>, used by the daily report</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">employees</span><span class="tdesc">Staff who log in. A cashier can do clerk work; a manager can do everything.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">full_name</td><td class="t">text</td><td></td></tr>
+        <tr><td class="k">role</td><td class="t">choice</td><td><code>clerk</code> | <code>cashier</code> | <code>manager</code></td></tr>
+        <tr><td class="k">pin_hash</td><td class="t">text</td><td>bcrypt or argon2 hash of the login PIN, never the PIN itself. Optional on Supabase</td></tr>
+        <tr><td class="k">is_active</td><td class="t">yes/no</td><td>Deactivate instead of deleting, so old sales keep their staff link</td></tr>
+        <tr><td class="k">auth_user_id</td><td class="t">uuid</td><td>Supabase only: links the row to a Supabase Auth user</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">categories · suppliers</span><span class="tdesc">Lookup tables.</span></summary>
+    <p class="note"><code>categories.name</code> is unique. Suppliers hold name, contact person, phone, email, address and <code>is_active</code>.</p>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">products</span><span class="tdesc">The catalog.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">sku</td><td class="t">text</td><td>Unique, required</td></tr>
+        <tr><td class="k">barcode</td><td class="t">text</td><td>Unique; empty if the item has none. Scanners type this into the search field</td></tr>
+        <tr><td class="k">name</td><td class="t">text</td><td></td></tr>
+        <tr><td class="k">category_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Required</td></tr>
+        <tr><td class="k">supplier_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Optional; main supplier</td></tr>
+        <tr><td class="k">unit</td><td class="t">text</td><td><code>pc</code>, <code>box</code>, <code>m</code>, <code>kg</code>, <code>L</code> …</td></tr>
+        <tr><td class="k">allow_fractional</td><td class="t">yes/no</td><td>Yes = can sell 1.5 m or 0.25 kg. No = whole units only (enforced)</td></tr>
+        <tr><td class="k">price_cents</td><td class="t">money</td><td>Shelf price, VAT-inclusive if the store is VAT-registered</td></tr>
+        <tr><td class="k">cost_cents</td><td class="t">money</td><td>For margin reports</td></tr>
+        <tr><td class="k">vat_status</td><td class="t">choice</td><td><code>vatable</code> | <code>exempt</code> | <code>zero_rated</code></td></tr>
+        <tr><td class="k">discount_class</td><td class="t">choice</td><td><code>sc_pwd</code> (20% + VAT-exempt for SC/PWD, e.g. medicine) | <code>basic_necessity</code> (5% for SC) | <code>none</code></td></tr>
+        <tr><td class="k">stock_milli</td><td class="t">qty</td><td>On hand. Updated automatically from <code>stock_movements</code>; never edit directly</td></tr>
+        <tr><td class="k">reorder_milli</td><td class="t">qty</td><td>Shows in the low-stock report at or below this level</td></tr>
+        <tr><td class="k">is_active, updated_at</td><td class="t">yes/no, time</td><td></td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">stock_movements</span><span class="tdesc">One row per stock change. Can't be edited or deleted.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">product_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td></td></tr>
+        <tr><td class="k">qty_milli</td><td class="t">qty</td><td>Positive adds stock, negative removes it; never 0</td></tr>
+        <tr><td class="k">reason</td><td class="t">choice</td><td><code>stock_in</code> | <code>sale</code> | <code>sale_void</code> | <code>return</code> | <code>adjustment</code></td></tr>
+        <tr><td class="k">transaction_id, return_item_id, supplier_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Whichever applies</td></tr>
+        <tr><td class="k">unit_cost_cents</td><td class="t">money</td><td>For deliveries</td></tr>
+        <tr><td class="k">employee_id<span class="key key-fk">FK</span>, note</td><td class="t">ref, text</td><td>Who did it, and why (needed for adjustments)</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">customers</span><span class="tdesc">Registered customers and members. Walk-ins get no row.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">full_name, phone, email</td><td class="t">text</td><td>Name required</td></tr>
+        <tr><td class="k">is_member, member_since</td><td class="t">yes/no, date</td><td>Replaces the separate Membership table</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">discount_types</span><span class="tdesc">Discount rules, applied per line item. Seeded with SC_20, PWD_20 and SC_BN_5.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">code, name</td><td class="t">text</td><td>Code is unique</td></tr>
+        <tr><td class="k">rate_bp</td><td class="t">int</td><td>0 to 10000</td></tr>
+        <tr><td class="k">vat_exempt</td><td class="t">yes/no</td><td>Yes = remove VAT first, then discount (SC/PWD 20%)</td></tr>
+        <tr><td class="k">beneficiary_type</td><td class="t">choice</td><td><code>SC</code> | <code>PWD</code>; empty = anyone (store promo)</td></tr>
+        <tr><td class="k">product_class</td><td class="t">choice</td><td>Matches <code>products.discount_class</code>; empty = any product</td></tr>
+        <tr><td class="k">weekly_cap_cents</td><td class="t">money</td><td>Purchase cap per beneficiary per week. Left empty for SC_BN_5; set it from the current DTI order</td></tr>
+        <tr><td class="k">valid_from, valid_to, is_active</td><td class="t">date, yes/no</td><td>For time-limited promos</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">shifts</span><span class="tdesc">A cashier's drawer session, for cash counts and end-of-day reports.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">cashier_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td></td></tr>
+        <tr><td class="k">opened_at, closed_at</td><td class="t">time</td><td></td></tr>
+        <tr><td class="k">opening_cash_cents</td><td class="t">money</td><td>Starting float</td></tr>
+        <tr><td class="k">counted_cash_cents</td><td class="t">money</td><td>Counted at close</td></tr>
+        <tr><td class="k">expected_cash_cents</td><td class="t">money</td><td>Opening + cash sales − cash refunds. Over/short = counted − expected</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">transactions</span><span class="tdesc">One sale, from order slip to paid invoice. Never deleted, only voided.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">invoice_no</td><td class="t">int</td><td>Assigned automatically when paid. Sequential and never reused</td></tr>
+        <tr><td class="k">status</td><td class="t">choice</td><td><code>pending</code> (slip) → <code>paid</code> → <code>voided</code></td></tr>
+        <tr><td class="k">customer_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Empty for walk-ins</td></tr>
+        <tr><td class="k">clerk_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Who built the order (required)</td></tr>
+        <tr><td class="k">cashier_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Who took payment (required once paid)</td></tr>
+        <tr><td class="k">shift_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td></td></tr>
+        <tr><td class="k">beneficiary_type, beneficiary_id_no, beneficiary_name</td><td class="t">choice, text</td><td>SC/PWD details for the invoice. Type and ID number go together; name is required with them</td></tr>
+        <tr><td class="k">gross, vat_removed, discount, total</td><td class="t">money</td><td><code>_cents</code>. Frozen from the line items at payment, so a printed invoice never changes</td></tr>
+        <tr><td class="k">vatable_sales, vat, vat_exempt_sales, zero_rated_sales</td><td class="t">money</td><td><code>_cents</code>. The VAT breakdown printed on the invoice</td></tr>
+        <tr><td class="k">paid_at</td><td class="t">time</td><td>Set automatically</td></tr>
+        <tr><td class="k">voided_at, voided_by<span class="key key-fk">FK</span>, void_reason</td><td class="t">time, ref, text</td><td>All three required to void</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">transaction_items</span><span class="tdesc">One line on the order. Amounts are computed by the app and checked by the database.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">transaction_id, product_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td></td></tr>
+        <tr><td class="k">qty_milli</td><td class="t">qty</td><td>More than 0</td></tr>
+        <tr><td class="k">unit_price_cents</td><td class="t">money</td><td>Copy of the product price at the time of sale</td></tr>
+        <tr><td class="k">tax_treatment</td><td class="t">choice</td><td>This line's actual treatment: <code>vatable</code> | <code>exempt</code> (incl. SC/PWD exemption) | <code>zero_rated</code> | <code>non_vat</code></td></tr>
+        <tr><td class="k">discount_type_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Required if there is a discount</td></tr>
+        <tr><td class="k">gross_cents</td><td class="t">money</td><td>Unit price × quantity</td></tr>
+        <tr><td class="k">vat_removed_cents</td><td class="t">money</td><td>VAT taken off for an SC/PWD exemption</td></tr>
+        <tr><td class="k">discount_cents</td><td class="t">money</td><td></td></tr>
+        <tr><td class="k">net_cents</td><td class="t">money</td><td>What the customer pays. Must equal gross − vat_removed − discount</td></tr>
+        <tr><td class="k">vat_cents</td><td class="t">money</td><td>VAT contained in net (vatable lines only)</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">payments</span><span class="tdesc">Money received. Several rows = split payment; the total must equal the amount due.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">transaction_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td></td></tr>
+        <tr><td class="k">method</td><td class="t">choice</td><td><code>cash</code> | <code>ewallet</code> | <code>card</code> | <code>exchange_credit</code></td></tr>
+        <tr><td class="k">amount_cents</td><td class="t">money</td><td>Amount applied to the bill</td></tr>
+        <tr><td class="k">tendered_cents</td><td class="t">money</td><td>Cash handed over. Change = tendered − amount</td></tr>
+        <tr><td class="k">reference_no</td><td class="t">text</td><td>E-wallet or card reference</td></tr>
+        <tr><td class="k">return_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Required for, and only for, <code>exchange_credit</code></td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">returns</span><span class="tdesc">A return against one paid sale.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">original_transaction_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>The sale being returned</td></tr>
+        <tr><td class="k">processed_by, approved_by<span class="key key-fk">FK</span></td><td class="t">ref</td><td>Approver = manager, when past the return window</td></tr>
+        <tr><td class="k">shift_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>For the cash drawer count</td></tr>
+        <tr><td class="k">resolution</td><td class="t">choice</td><td><code>refund</code> | <code>exchange</code></td></tr>
+        <tr><td class="k">reason</td><td class="t">text</td><td>Required</td></tr>
+        <tr><td class="k">cash_refund_cents</td><td class="t">money</td><td>Cash given back. For an exchange, only the leftover credit</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">return_items</span><span class="tdesc">Each line being returned.</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Column</th><th>Kind</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k">return_id, transaction_item_id<span class="key key-fk">FK</span></td><td class="t">ref</td><td>The exact original line</td></tr>
+        <tr><td class="k">qty_milli</td><td class="t">qty</td><td>Can't exceed what is left of the original line</td></tr>
+        <tr><td class="k">credit_cents</td><td class="t">money</td><td>What the customer paid for these units: net × returned qty ÷ sold qty</td></tr>
+        <tr><td class="k">item_condition</td><td class="t">choice</td><td><code>resellable</code> (back to stock) | <code>damaged</code> (not restocked)</td></tr>
+      </tbody></table></div>
+  </details>
+
+  <details class="tbl">
+    <summary><span class="tname">Views (reports)</span><span class="tdesc">v_transaction_totals, v_low_stock, v_daily_sales</span></summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>View</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td class="k">v_transaction_totals</td><td>Live totals for any transaction, computed from its lines. Show this on a pending slip; the payment step copies it into <code>transactions</code>.</td></tr>
+        <tr><td class="k">v_low_stock</td><td>Active products at or below their reorder level.</td></tr>
+        <tr><td class="k">v_daily_sales</td><td>Per-day invoice range, paid and voided counts, gross, discounts, net sales and VAT breakdown. Basis for the end-of-day (Z) reading.</td></tr>
+      </tbody></table></div>
+  </details>
+  </div>
+  <p class="muted" id="noMatch" hidden>No table or column matches that search.</p>
+</section>
+
+<!-- ================================ SALE ================================ -->
+<section class="block" id="sale">
+  <div class="eyebrow">Flow</div>
+  <h2>How a sale works</h2>
+  <figure>
+    <div class="diagram flow">
+<svg viewBox="0 0 700 120" role="img" aria-labelledby="flowTitle" xmlns="http://www.w3.org/2000/svg">
+  <title id="flowTitle">Transaction status: pending, paid, voided</title>
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="st" x="10" y="30" width="150" height="54" rx="27"/>
+  <text class="sl" x="85" y="55" text-anchor="middle">pending</text>
+  <text class="sd" x="85" y="71" text-anchor="middle">order slip; lines editable</text>
+  <rect class="st" x="290" y="30" width="150" height="54" rx="27"/>
+  <text class="sl" x="365" y="55" text-anchor="middle">paid</text>
+  <text class="sd" x="365" y="71" text-anchor="middle">invoice no.; stock deducted</text>
+  <rect class="stv" x="540" y="30" width="150" height="54" rx="27"/>
+  <text class="sl" x="615" y="55" text-anchor="middle">voided</text>
+  <text class="sd" x="615" y="71" text-anchor="middle">final; stock restored</text>
+  <path class="ar" d="M160,57 H288" marker-end="url(#arr)"/>
+  <text class="al" x="224" y="50" text-anchor="middle">cashier takes payment</text>
+  <path class="ar" d="M440,57 H538" marker-end="url(#arr)"/>
+  <text class="al" x="489" y="50" text-anchor="middle">manager voids</text>
+  <path class="ar" d="M85,84 V106 H615 V86" marker-end="url(#arr)"/>
+  <text class="al" x="350" y="102" text-anchor="middle">slip abandoned (manager voids)</text>
+</svg>
+    </div>
+    <figcaption>Transaction status. No other changes are allowed.</figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li><strong>Clerk builds the order.</strong> Insert a <code>transactions</code> row (status <code>pending</code>, <code>clerk_id</code>). If the customer is SC/PWD, check the ID now and fill in the beneficiary fields, before the slip prints.</li>
+    <li><strong>Add lines.</strong> For each scanned item, insert a <code>transaction_items</code> row with amounts computed as in <a href="#discounts">the discount section</a>. Lines can change freely while pending.</li>
+    <li><strong>Print the order slip</strong> from <code>v_transaction_totals</code>.</li>
+    <li><strong>Cashier takes payment.</strong> Insert one or more <code>payments</code> rows that add up to the amount due.</li>
+    <li><strong>Mark it paid:</strong> <code>UPDATE transactions SET status = 'paid', cashier_id = ?, shift_id = ?</code>. The database checks the items and payments, assigns the next invoice number, freezes the totals and VAT breakdown, and deducts stock.</li>
+    <li><strong>Print the invoice.</strong> From here the lines and payments are locked.</li>
+  </ol>
+  <div class="callout">
+    <strong>Wrap each step in a database transaction</strong>
+    <p><code>BEGIN … COMMIT</code> makes the step all-or-nothing: if the app crashes halfway through payment, nothing is half-saved.
+    In single-step stores (<code>two_step_checkout</code> off), the same person does all steps and the slip is skipped.</p>
+  </div>
+</section>
+
+<!-- ================================ DISCOUNTS ================================ -->
+<section class="block" id="discounts">
+  <div class="eyebrow">Tax</div>
+  <h2>SC / PWD discounts and VAT</h2>
+  <p>Discounts are applied to each line, not the whole sale. Each line gets at most one discount; the app picks the best one the customer qualifies for. SC/PWD discounts don't stack with store promos.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Code</th><th>Who</th><th>Which products</th><th class="num">Rate</th><th>VAT</th></tr></thead>
+      <tbody>
+        <tr><td class="k">SC_20</td><td>Senior Citizen</td><td><code>sc_pwd</code> class (e.g. medicine)</td><td class="num">20%</td><td>Exempt</td></tr>
+        <tr><td class="k">PWD_20</td><td>PWD</td><td><code>sc_pwd</code> class</td><td class="num">20%</td><td>Exempt</td></tr>
+        <tr><td class="k">SC_BN_5</td><td>Senior Citizen</td><td><code>basic_necessity</code> class</td><td class="num">5%</td><td>Unchanged; weekly cap</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Line calculation (done by the app)</h3>
+<pre class="code"><code>gross        = unit_price × qty
+if the discount is VAT-exempt (SC/PWD 20%):
+    base = round(gross / 1.12)     vat_removed = gross − base
+else:
+    base = gross                   vat_removed = 0
+discount     = round(base × rate)
+net          = base − discount
+vat          = (tax_treatment = 'vatable') ? net − round(net / 1.12) : 0</code></pre>
+  <p class="muted">Round half up to the centavo, per line. If the store is not VAT-registered, skip the VAT step: the 20% comes straight off the price and every line is <code>non_vat</code>.</p>
+
+  <h3>Worked example: Senior Citizen sale</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Gross</th><th class="num">VAT removed</th><th class="num">Discount</th><th class="num">Net</th></tr></thead>
+      <tbody>
+        <tr><td>Paracetamol 500mg, box (₱112.00, SC_20)</td><td class="num">2</td><td class="num">224.00</td><td class="num">24.00</td><td class="num">40.00</td><td class="num">160.00</td></tr>
+        <tr><td>Rice per kg (₱56.00, VAT-exempt, SC_BN_5)</td><td class="num">2 kg</td><td class="num">112.00</td><td class="num">0.00</td><td class="num">5.60</td><td class="num">106.40</td></tr>
+        <tr class="total"><td>Total</td><td></td><td class="num">336.00</td><td class="num">24.00</td><td class="num">45.60</td><td class="num">266.40</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="split">
+    <div>
+      <p>One box of paracetamol: ₱112.00 ÷ 1.12 = ₱100.00 without VAT, less 20% = <strong>₱80.00</strong>.</p>
+      <p>The invoice shows VAT-exempt sales <em>before</em> the SC discount (₱312.00 here), then the discount on its own line.
+        This is the usual layout, but confirm it with your accountant or BIR.</p>
+      <p>For the 5% basic-necessities discount, the app must add up this beneficiary's purchases over the past 7 days (by <code>beneficiary_id_no</code>) and stop applying it once the weekly cap is reached.</p>
+    </div>
+<pre class="receipt" aria-label="Sample invoice">        MY STORE
+   SALES INVOICE No. 000001
+
+Paracetamol 500mg  2 x 112.00
+                       224.00
+Rice (kg)       2.000 x 56.00
+                       112.00
+-----------------------------
+Total                  336.00
+Less: VAT               24.00
+Less: SC discount       45.60
+AMOUNT DUE             266.40
+
+Cash                   300.00
+Change                  33.60
+-----------------------------
+VATable sales            0.00
+VAT amount               0.00
+VAT-exempt sales       312.00
+Zero-rated sales         0.00
+
+SC ID No.: SC-12345
+Name:      Juan Dela Cruz
+Signature: ________________</pre>
+  </div>
+</section>
+
+<!-- ================================ RETURNS ================================ -->
+<section class="block" id="returns">
+  <div class="eyebrow">After the sale</div>
+  <h2>Returns and exchanges</h2>
+  <ol class="steps">
+    <li><strong>Find the original sale</strong> by the invoice number on the receipt. It must be <code>paid</code>.</li>
+    <li><strong>Check the return window</strong> (<code>return_window_days</code>). Past it, a manager approves and is recorded in <code>approved_by</code>.</li>
+    <li><strong>Create the return</strong> with a reason, then a <code>return_items</code> row per line with quantity, condition and credit.
+      Credit is what the customer actually paid: an SC who paid ₱80.00 for a ₱112.00 box gets ₱80.00 back.</li>
+    <li><strong>Resellable items go back into stock</strong> automatically. Damaged items don't.</li>
+    <li><strong>Refund:</strong> set <code>cash_refund_cents</code> to the total credit.</li>
+    <li><strong>Exchange:</strong> ring up the new items as a new sale, paid with an <code>exchange_credit</code> payment pointing to the return.
+      If the new items cost more, the customer pays the difference; if less, refund the leftover in <code>cash_refund_cents</code>.</li>
+  </ol>
+  <div class="callout">
+    <strong>Void or return?</strong>
+    <p>Void a sale only when it is cancelled entirely, before the customer leaves. Once anything from a sale has been returned, it can't be voided.</p>
+  </div>
+</section>
+
+<!-- ================================ RULES ================================ -->
+<section class="block" id="rules">
+  <div class="eyebrow">Safety net</div>
+  <h2>Rules the database enforces</h2>
+  <p>These are built into every <code>schema.sql</code> as constraints and triggers, so they hold even if the app has a bug.
+    They were tested on SQLite and PostgreSQL. MySQL has the same rules but hasn't been run yet.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Attempt</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Wrong data type</td><td>Rejected (e.g. text or <code>112.50</code> in a centavo column)</td></tr>
+        <tr><td>Line amounts don't add up</td><td>Rejected: net must equal gross − VAT removed − discount</td></tr>
+        <tr><td>Whole-unit product sold in a fraction</td><td>Rejected</td></tr>
+        <tr><td>Paying an empty order, or payments ≠ amount due</td><td>Rejected</td></tr>
+        <tr><td>Marking paid</td><td>Invoice number, paid time and totals set; stock deducted</td></tr>
+        <tr><td>Editing lines or adding payments after payment</td><td>Rejected</td></tr>
+        <tr><td>Deleting a transaction</td><td>Rejected: void it instead</td></tr>
+        <tr><td>Void without who, when and why</td><td>Rejected</td></tr>
+        <tr><td>Voiding a paid sale</td><td>Stock put back. Rejected if the sale has returns</td></tr>
+        <tr><td>Changing a voided sale, or going back to pending</td><td>Rejected</td></tr>
+        <tr><td>SC/PWD without ID number or name</td><td>Rejected</td></tr>
+        <tr><td>Returning an item from a different sale, or more than was bought</td><td>Rejected</td></tr>
+        <tr><td>Exchange credit plus cash refund worth more than the return</td><td>Rejected</td></tr>
+        <tr><td>Any stock movement</td><td>Product stock updated to match</td></tr>
+        <tr><td>Changing or deleting a stock movement</td><td>Rejected: add an adjustment instead</td></tr>
+        <tr><td>Creating a sale that's already marked paid</td><td>Rejected: every sale starts as a pending order</td></tr>
+        <tr><td>Editing anything on a paid invoice except voiding</td><td>PostgreSQL and MySQL: rejected. SQLite: lines and payments are locked, but the app must not change the header</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================================ SETUP ================================ -->
+<section class="block" id="setup">
+  <div class="eyebrow">Install</div>
+  <h2>Setup guides</h2>
+
+  <div class="tabs" role="tablist" aria-label="Database setup guides">
+    <button class="tab" role="tab" id="tab-sqlite" aria-controls="panel-sqlite" aria-selected="true" data-tab="sqlite">SQLite</button>
+    <button class="tab" role="tab" id="tab-pg" aria-controls="panel-pg" aria-selected="false" data-tab="pg">PostgreSQL</button>
+    <button class="tab" role="tab" id="tab-mysql" aria-controls="panel-mysql" aria-selected="false" data-tab="mysql">MySQL</button>
+    <button class="tab" role="tab" id="tab-supa" aria-controls="panel-supa" aria-selected="false" data-tab="supa">Supabase</button>
+    <button class="tab" role="tab" id="tab-gcp" aria-controls="panel-gcp" aria-selected="false" data-tab="gcp">Google Cloud</button>
+    <button class="tab" role="tab" id="tab-aws" aria-controls="panel-aws" aria-selected="false" data-tab="aws">AWS</button>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="panel-sqlite" aria-labelledby="tab-sqlite">
+    <h3>SQLite</h3>
+    <p><strong>Files:</strong> <code>sqlite/schema.sql</code>, <code>sqlite/example_checkout.sql</code>.</p>
+<pre class="code"><code>// Electron + better-sqlite3: run once when the app first starts
+const Database = require('better-sqlite3');
+const db = new Database(path.join(app.getPath('userData'), 'pos.db'));
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');          // on every connection
+db.exec(fs.readFileSync('schema.sql', 'utf8'));</code></pre>
+    <ul>
+      <li>Keep the database file in the app's user-data folder, not the install folder. Back it up daily: a copy of the file is a full backup.</li>
+      <li>Only one computer should write to the file. Don't share it over a network drive; use a server database for that.</li>
+    </ul>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="panel-pg" aria-labelledby="tab-pg" hidden>
+    <h3>PostgreSQL</h3>
+    <p><strong>Files:</strong> <code>postgresql/schema.sql</code>, <code>postgresql/example_checkout.sql</code>. Needs PostgreSQL 15 or newer.</p>
+<pre class="code"><code>createdb pos
+psql -d pos -f postgresql/schema.sql
+psql -d pos -f postgresql/example_checkout.sql   # optional: sample data</code></pre>
+    <ul>
+      <li>Connect from the app with the <code>pg</code> package (Node) or <code>tauri-plugin-sql</code> (Tauri).</li>
+      <li>Times are stored as <code>timestamptz</code>; the daily report converts them using <code>store_settings.time_zone</code>.</li>
+      <li>For a store network, install PostgreSQL on one PC, allow the counters' addresses in <code>pg_hba.conf</code>, and give the app its own database user, not <code>postgres</code>.</li>
+    </ul>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="panel-mysql" aria-labelledby="tab-mysql" hidden>
+    <h3>MySQL</h3>
+    <p><strong>Files:</strong> <code>mysql/schema.sql</code>, <code>mysql/example_checkout.sql</code>. Needs MySQL 8.0.16 or newer (older versions ignore CHECK rules).</p>
+<pre class="code"><code>mysql -u root -p -e "CREATE DATABASE pos CHARACTER SET utf8mb4"
+mysql -u root -p pos &lt; mysql/schema.sql
+mysql -u root -p pos &lt; mysql/example_checkout.sql   # optional: sample data</code></pre>
+    <ul>
+      <li>Load it with the <code>mysql</code> command-line client. The <code>DELIMITER</code> lines are client commands; some GUI tools need them removed.</li>
+      <li>Set the server time zone to store time, or run <code>SET time_zone = '+08:00'</code> on every connection.</li>
+      <li>Keep the default strict SQL mode so bad values are rejected. Connect with the <code>mysql2</code> package.</li>
+      <li>XAMPP ships MariaDB, not MySQL. It is very similar, but this schema hasn't been tried on it.</li>
+    </ul>
+    <div class="callout callout-warn"><strong>Not yet run</strong><p>The MySQL files have the same rules as the tested versions, but haven't been run on a MySQL server yet. Test them before relying on them.</p></div>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="panel-supa" aria-labelledby="tab-supa" hidden>
+    <h3>Supabase</h3>
+    <p><strong>Files:</strong> <code>supabase/migrations/…000000_pos_schema.sql</code> (the PostgreSQL schema) and <code>…000100_auth_and_rls.sql</code> (staff login and access rules).</p>
+    <ol>
+      <li>Create a project in the Southeast Asia (Singapore) region, the closest to the Philippines.</li>
+      <li>Apply both files in order: <code>supabase db push</code> with the Supabase CLI, or paste each into the SQL Editor.</li>
+      <li>For each staff member, create a user under Authentication, then link it: <code>update employees set auth_user_id = '…' where employee_id = …</code>.</li>
+      <li>In the app, log in with <code>supabase.auth.signInWithPassword()</code> and use the normal client. The access rules apply automatically.</li>
+    </ol>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Role</th><th>Allowed (everything else is refused by the database)</th></tr></thead>
+        <tbody>
+          <tr><td>Clerk</td><td>Read everything except PIN hashes. Start orders under their own name; add and edit lines on pending orders; register customers.</td></tr>
+          <tr><td>Cashier</td><td>Clerk permissions, plus: take payments, mark orders paid as themselves, open and close their own shifts, process returns.</td></tr>
+          <tr><td>Manager</td><td>Everything, plus: void sales; edit products, prices, discounts and staff; record deliveries and stock adjustments; approve late returns.</td></tr>
+          <tr><td>Not logged in</td><td>Nothing.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li>Never put the <code>service_role</code> key in the POS app; it bypasses every rule. Only the public (anon) key belongs there.</li>
+      <li>Staff can't read <code>pin_hash</code>, so query employees with named columns, not <code>select *</code>.</li>
+      <li>On the free plan, inactive projects can be paused. Check the current plan limits before relying on it for a live store.</li>
+    </ul>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="panel-gcp" aria-labelledby="tab-gcp" hidden>
+    <h3>Google Cloud</h3>
+    <ul>
+      <li><strong>Use Cloud SQL</strong> for PostgreSQL (with <code>postgresql/</code>) or for MySQL (with <code>mysql/</code>). AlloyDB also takes the PostgreSQL files.</li>
+      <li>Pick region <code>asia-southeast1</code> (Singapore). For MySQL, set the <code>default_time_zone</code> flag to <code>+08:00</code>.</li>
+      <li>Don't let the counter PCs connect to the database directly over the internet. Put a small backend in between, such as Cloud Run with the Cloud SQL connector. The desktop app talks to that backend, which checks who the user is.</li>
+    </ul>
+    <div class="callout callout-warn">
+      <strong>Firebase / Firestore isn't a good fit</strong>
+      <p>It's a document database with no table links, CHECK rules or triggers, so every built-in rule would have to be rewritten as Cloud Functions. Sales and stock data is relational.
+      If you want Firebase, use Firebase Authentication with Cloud SQL, or Firebase Data Connect, which runs on Cloud SQL for PostgreSQL.</p>
+    </div>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="panel-aws" aria-labelledby="tab-aws" hidden>
+    <h3>AWS</h3>
+    <ul>
+      <li><strong>Use RDS for PostgreSQL or Aurora PostgreSQL</strong> (with <code>postgresql/</code>), or RDS for MySQL or Aurora MySQL (with <code>mysql/</code>).</li>
+      <li>Pick region <code>ap-southeast-1</code> (Singapore). For MySQL, set <code>time_zone</code> in a DB parameter group.</li>
+      <li>Keep the database private, not publicly accessible. Put a backend in between, such as Lambda + API Gateway or a small server on ECS/EC2, and keep credentials in Secrets Manager.</li>
+      <li>Turn on automated backups and choose a retention period.</li>
+    </ul>
+    <div class="callout callout-warn"><strong>DynamoDB isn't a good fit</strong><p>Same reason as Firestore: no table links, CHECK rules or triggers.</p></div>
+  </div>
+</section>
+
+<!-- ================================ OPEN ================================ -->
+<section class="block" id="open">
+  <div class="eyebrow">Still to do</div>
+  <h2>What the app must do, and open items</h2>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>The app is responsible for</h3>
+      <ul style="margin:6px 0 0">
+        <li>SQLite: <code>PRAGMA foreign_keys = ON</code> on every connection.</li>
+        <li>Cloud databases: going through a backend or Supabase login, never embedding database admin credentials in the desktop app.</li>
+        <li>Computing each line's VAT and discount before saving it.</li>
+        <li>Converting pesos to centavos.</li>
+        <li>Choosing the best discount per line, and enforcing the weekly cap on basic necessities.</li>
+        <li>Checking the return window, and asking for a manager PIN for voids and late returns.</li>
+        <li>Checking role permissions (Supabase enforces these itself).</li>
+        <li>Hashing PINs, and computing expected cash when a shift closes.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Open items</h3>
+      <ul style="margin:6px 0 0">
+        <li><strong>Weekly cap for SC_BN_5:</strong> left empty; set it from the current DTI order.</li>
+        <li><strong>5% basic necessities for PWD:</strong> not seeded; check whether current rules extend it to PWDs.</li>
+        <li><strong>Refunds in the end-of-day report:</strong> <code>v_daily_sales</code> shows sales only; add refunds from <code>returns</code>.</li>
+        <li><strong>Invoice layout and BIR registration:</strong> confirm required fields with BIR or an accountant.</li>
+        <li><strong>Offline sync:</strong> if you combine local SQLite with a cloud database, the syncing and per-counter invoice series still need designing.</li>
+        <li><strong>Testing:</strong> SQLite 3.45 and PostgreSQL 18 tested; Supabase rules tested with a login stand-in; MySQL not yet run; none run through Electron or Tauri yet.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer class="site">
+  POS v1 Database Design · 26 October 2026 · Discount and VAT rules are a starting point; verify against current BIR and DTI rules.
+</footer>
+
+<dialog class="viewer" id="viewer" aria-labelledby="viewerTitle">
+  <div class="viewer-head">
+    <span class="vtitle" id="viewerTitle">file.sql</span>
+    <button class="btn btn-sm" id="viewerCopy">Copy</button>
+    <a class="btn btn-sm" id="viewerDownload" href="#" download>Download</a>
+    <button class="btn btn-sm btn-icon" id="viewerClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <div class="viewer-body"><pre><code id="viewerCode" class="language-sql"></code></pre></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
+<script src="assets/app.js?v=2" defer></script>
+</body>
+</html>

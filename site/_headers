@@ -1,0 +1,16 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+
+/downloads/sqlite/*
+  Content-Type: text/plain; charset=utf-8
+
+/downloads/postgresql/*
+  Content-Type: text/plain; charset=utf-8
+
+/downloads/mysql/*
+  Content-Type: text/plain; charset=utf-8
+
+/downloads/supabase/*
+  Content-Type: text/plain; charset=utf-8

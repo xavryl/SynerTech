@@ -1,0 +1,54 @@
+{
+  "files": {
+    "sqlite/schema.sql": {
+      "bytes": 27952,
+      "lines": 599
+    },
+    "sqlite/example_checkout.sql": {
+      "bytes": 6572,
+      "lines": 131
+    },
+    "pos-sqlite.zip": {
+      "bytes": 10686
+    },
+    "postgresql/schema.sql": {
+      "bytes": 29466,
+      "lines": 644
+    },
+    "postgresql/example_checkout.sql": {
+      "bytes": 8570,
+      "lines": 175
+    },
+    "pos-postgresql.zip": {
+      "bytes": 11057
+    },
+    "mysql/schema.sql": {
+      "bytes": 33257,
+      "lines": 700
+    },
+    "mysql/example_checkout.sql": {
+      "bytes": 7517,
+      "lines": 143
+    },
+    "pos-mysql.zip": {
+      "bytes": 11460
+    },
+    "supabase/migrations/20261026000000_pos_schema.sql": {
+      "bytes": 29466,
+      "lines": 644
+    },
+    "supabase/migrations/20261026000100_auth_and_rls.sql": {
+      "bytes": 12765,
+      "lines": 216
+    },
+    "pos-supabase.zip": {
+      "bytes": 11169
+    },
+    "pos-schemas-all.zip": {
+      "bytes": 39332
+    },
+    "POS_v1_Database_Design.pdf": {
+      "bytes": 590666
+    }
+  }
+}
